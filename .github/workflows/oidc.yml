@@ -1,14 +1,30 @@
 name: OIDC test
 on: workflow_dispatch
+
 permissions:
+  contents: read
   id-token: write
+  
 jobs:
   token:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ github.token }}
+      KUBE_SERVER: https://kube.valdum.dev
     steps:
-      - run: |
-          curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vps" | jq -r .value | base64
-          gh api users/V4ldum --jq .id
+      - uses: actions/checkout@v4
+      
+      - name: Get cluster token
+        run: |
+          TOKEN=$(curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=vps" | jq -r .value)
+          echo "::add-mask::$TOKEN"
+          echo "KUBE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Apply manifest
+        run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" apply -f kubernetes.yml
+
+      - name: Restart
+        run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" rollout restart deployment/heal
+
+      - name: Wait for rollout
+        run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" rollout status deployment/heal --timeout=180s
