@@ -1,0 +1,97 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+
+metadata:
+    name: heal
+    annotations:
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+
+spec:
+    ingressClassName: traefik
+    rules:
+      - host: heal.valdum.dev
+        http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                    service:
+                        name: heal
+                        port:
+                            name: http-out
+
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+    name: heal
+
+spec:
+    type: ClusterIP
+    selector:
+        app: heal
+    sessionAffinity: None
+    ports:
+      - name: http-out
+        protocol: TCP
+        port: 80
+        targetPort: http-in
+
+---
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+    name: heal
+
+spec:
+    replicas: 1
+    minReadySeconds: 15
+    revisionHistoryLimit: 1
+
+    strategy:
+        rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 0
+
+    selector:
+        matchLabels:
+            app: heal
+
+    template:
+        metadata:
+            labels:
+                app: heal
+                dozzle: "true"
+
+        spec:
+            containers:
+              - name: heal
+                image: ghcr.io/v4ldum/heal:latest
+                imagePullPolicy: Always
+
+                ports:
+                  - name: http-in
+                    containerPort: 8080
+
+                env:
+                  - name: TZ
+                    value: Europe/Paris
+
+                envFrom:
+                  - secretRef:
+                      name: heal-discord-webhook
+
+                startupProbe:
+                    periodSeconds: 1
+                    failureThreshold: 10
+                    httpGet:
+                        path: /
+                        port: http-in
+                readinessProbe:
+                    timeoutSeconds: 3
+                    httpGet:
+                        path: /
+                        port: http-in
