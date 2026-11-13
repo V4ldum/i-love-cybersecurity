@@ -22,7 +22,7 @@ jobs:
           echo "KUBE_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
       - name: Apply manifest
-        run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" apply --server-side --prune --applyset=heal -n default -f kubernetes.yml 
+        run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" apply --server-side --prune --applyset=configmaps/heal -n default -f kubernetes.yml 
 
       - name: Restart
         run: kubectl --server="$KUBE_SERVER" --token="$KUBE_TOKEN" rollout restart deployment/heal
