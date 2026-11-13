@@ -1,4 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 
+metadata:
+    name: heal
+    annotations:
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+
+spec:
+    ingressClassName: traefik
+    rules:
+      - host: heal.valdum.dev
+        http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                    service:
+                        name: heal
+                        port:
+                            name: http-out
+
+---
 apiVersion: v1
 kind: Service
 
